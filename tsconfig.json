@@ -18,7 +18,7 @@
         "allowUnusedLabels": false,
         "allowJs": false, // cannot be true when decleration is true
         "noImplicitAny": false,
-        "suppressImplicitAnyIndexErrors": true,
+        //"suppressImplicitAnyIndexErrors": true, depricated in 5.5
         "noImplicitReturns": true,
         "noImplicitUseStrict": false,
         "noFallthroughCasesInSwitch": true,
