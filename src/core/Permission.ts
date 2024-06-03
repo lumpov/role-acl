@@ -49,11 +49,12 @@ class Permission {
      *  @param {IQueryInfo} query
      *         An `IQueryInfo` arbitrary object.
      */
-    constructor(query: IQueryInfo, attributes: any) {
+    constructor(query: IQueryInfo, attributes: any, condition?: any) {
         this._.role = query.role;
         this._.resource = query.resource;
         this._.context = query.context;
         this._.attributes = attributes;
+        this._.condition = condition;
     }
 
     /**
@@ -132,6 +133,10 @@ class Permission {
      */
     filter(data: any) {
         return CommonUtil.filterAll(data, this.attributes);
+    }
+
+    get condition() {
+        return this._.condition;
     }
 
 }

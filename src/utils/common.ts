@@ -4,6 +4,7 @@ import { ArrayUtil } from './array';
 import { ConditionUtil } from '../conditions';
 import { AccessControlError, IQueryInfo, IAccessInfo, ICondition } from '../core';
 import cloneDeep from 'lodash.clonedeep';
+import { IUnionAttributesAndConditions } from '../core';
 
 export class CommonUtil {
 
@@ -376,7 +377,51 @@ export class CommonUtil {
             }).reduce(Notation.Glob.union, []);
     }
 
+    /**
+     *  The same function getUnionAttrsOfRoles, but return object
+     * `{attributes, condition}`. When more than one role is passed,
+     * condition is undefined because union conditions is nonsence.
+     *
+     *  @param {Any} grants
+     *  @param {IQueryInfo} query
+     *
+     *  @returns {Object} - Object attributes and condition.
+     */
+     public static async getUnionAttrsAndConditionOfRoles(grants: any, query: IQueryInfo): Promise<IUnionAttributesAndConditions<Object>> {
+        const matchingGrants = (await this.getUnionGrantsOfRoles(grants, query))
+            .filter((grant) => {
+                return this.anyMatch(query.resource, grant.resource)
+                    && this.anyMatch(query.action, grant.action);
+            });
 
+        const matchingAttributes = (await this.filterGrantsAllowing(matchingGrants, query))
+            .map((grant) => {
+                return ArrayUtil.toStringArray(grant.attributes);
+            }).reduce(Notation.Glob.union, []);
+
+        return {
+            attributes: matchingAttributes,
+            condition: matchingGrants.length == 1 ? matchingGrants[0].condition : undefined,
+        };
+    }
+
+    public static getUnionAttrsAndConditionOfRolesSync(grants: any, query: IQueryInfo): IUnionAttributesAndConditions<Object> {
+        const matchingGrants = (this.getUnionGrantsOfRolesSync(grants, query))
+            .filter((grant) => {
+                return this.anyMatch(query.resource, grant.resource)
+                    && this.anyMatch(query.action, grant.action);
+            });
+
+        const matchingAttributes = (this.filterGrantsAllowingSync(matchingGrants, query))
+            .map((grant) => {
+                return ArrayUtil.toStringArray(grant.attributes);
+            }).reduce(Notation.Glob.union, []);
+
+        return {
+            attributes: matchingAttributes,
+            condition: matchingGrants.length == 1 ? matchingGrants[0].condition : undefined,
+        };
+    }
 
     public static async filterGrantsAllowing(grants: IAccessInfo[], query: IQueryInfo): Promise<IAccessInfo[]> {
         if (query.skipConditions) {

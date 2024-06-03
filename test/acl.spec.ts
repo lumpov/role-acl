@@ -250,8 +250,6 @@ describe('Test Suite: Access Control', function () {
         expect((ac.can('editor').execute('delete').sync().on('post')).granted).toBeTruthy();
     });
 
-
-
     it('should add conditional grants from flat list (db), check/remove roles and resources', async function () {
         let ac = this.ac;
         ac.setGrants(conditionalGrantList);
@@ -525,7 +523,7 @@ describe('Test Suite: Access Control', function () {
     });
 
 
-    it('should grant access with equals conditions with null values', function() {
+    it('should grant access with equals conditions with null values', function () {
         const ac = new AccessControl([{
             role: 'user',
             resource: 'task',
@@ -539,7 +537,7 @@ describe('Test Suite: Access Control', function () {
                 ]
             }
         }]);
-        expect((ac.can('user').context({ 
+        expect((ac.can('user').context({
             AssignedId: 'abc123',
             CompletedAt: null,
             userId: 'abc123'
@@ -731,16 +729,16 @@ describe('Test Suite: Access Control', function () {
             .execute('edit').on('article')).granted).toEqual(false);
 
         ac.grant('user').condition(
-                {
-                    Fn: 'EQUALS',
-                    args: {
-                        '$.request.initiator': '$.owner'
-                    }
-                }).execute('edit').on('article');
-            expect((await ac.can('user').context({ owner: 'dilip', request: {initiator: 'dilip' }})
-                .execute('edit').on('article')).granted).toEqual(true);
-            expect((await ac.can('user').context({ owner: 'tensult', request: {initiator: 'dilip' } })
-                .execute('edit').on('article')).granted).toEqual(false);
+            {
+                Fn: 'EQUALS',
+                args: {
+                    '$.request.initiator': '$.owner'
+                }
+            }).execute('edit').on('article');
+        expect((await ac.can('user').context({ owner: 'dilip', request: { initiator: 'dilip' } })
+            .execute('edit').on('article')).granted).toEqual(true);
+        expect((await ac.can('user').context({ owner: 'tensult', request: { initiator: 'dilip' } })
+            .execute('edit').on('article')).granted).toEqual(false);
     });
 
     it('should grant access with JSONPath context values with EQUALS condition synchronously', function () {
@@ -897,12 +895,12 @@ describe('Test Suite: Access Control', function () {
 
         const ac = new AccessControl();
         ac.registerConditionFunction('gte', customConditionFunctions.gte);
-        ac.grant("user").condition({Fn:'custom:gte', args:{level: 2}}).execute(['comment']).on('article');
-        expect((await ac.can('user').context({level: 2})
+        ac.grant("user").condition({ Fn: 'custom:gte', args: { level: 2 } }).execute(['comment']).on('article');
+        expect((await ac.can('user').context({ level: 2 })
             .execute('comment').on('article')).granted).toEqual(true);
-        expect((await ac.can('user').context({level: 3})
+        expect((await ac.can('user').context({ level: 3 })
             .execute('comment').on('article')).granted).toEqual(true);
-        expect((await ac.can('user').context({level: 1})
+        expect((await ac.can('user').context({ level: 1 })
             .execute('comment').on('article')).granted).toEqual(false);
     });
 
@@ -990,12 +988,12 @@ describe('Test Suite: Access Control', function () {
         expect(
             (await ac.can('user').context({ loginUserId: 1, article: { id: 10 } })
                 .execute('update').on('article'))
-            .granted
+                .granted
         ).toBe(true);
         expect(
             (await ac.can('user').context({ loginUserId: 2, article: { id: 10 } })
                 .execute('update').on('article'))
-            .granted
+                .granted
         ).toBe(false);
     });
 
@@ -1051,7 +1049,7 @@ describe('Test Suite: Access Control', function () {
             (await ac.can('user').context({ user: { id: 1 }, record: { id: 1 } })
                 .execute('delete').on('article')).granted
         ).toBe(false);  // granted === false
-        
+
         expect(
             (await ac.can('user').context({ user: { id: 1 }, record: { id: 2 } })
                 .execute('delete').on('article')).granted
@@ -1109,7 +1107,7 @@ describe('Test Suite: Access Control', function () {
             (await ac.can('editor/news').context({ user: { id: 1 }, article: { owner: 2 }, category: { type: 'news' } })
                 .execute('approve').on('article')).granted
         ).toBe(false);  // granted === false
-        
+
         expect(
             (await ac.can('editor/news').context({ user: { id: 1 }, article: { owner: 1 }, category: { type: 'tutorials' } })
                 .execute('approve').on('article')).granted
@@ -1118,16 +1116,16 @@ describe('Test Suite: Access Control', function () {
 
     it('should validate custom named functions as condition object', async function () {
         const ac = new AccessControl();
-        expect(() => 
-        ac.grant("user").condition({Fn:'custom:gte', args:{level: 2}})
-        .execute(['comment']).on('article')).toThrow();
+        expect(() =>
+            ac.grant("user").condition({ Fn: 'custom:gte', args: { level: 2 } })
+                .execute(['comment']).on('article')).toThrow();
     });
 
     it('should validate custom named functions as condition string', async function () {
         const ac = new AccessControl();
-        expect(() => 
-        ac.grant("user").condition('custom:gte')
-        .execute(['comment']).on('article')).toThrow();
+        expect(() =>
+            ac.grant("user").condition('custom:gte')
+                .execute(['comment']).on('article')).toThrow();
     });
 
     it('should support initializing ACL when grants has custom functions', async function () {
@@ -1410,7 +1408,7 @@ describe('Test Suite: Access Control', function () {
                     tags: '$.category'
                 }
             }).execute('create').on('article');
-        expect((ac.can('user').context({ tags: 'sports', category: 'sports'  }).execute('create').sync().on('article')).granted).toEqual(true);
+        expect((ac.can('user').context({ tags: 'sports', category: 'sports' }).execute('create').sync().on('article')).granted).toEqual(true);
         expect((ac.can('user').context({ tags: 'politics' }).execute('create').sync().on('article')).granted).toEqual(false);
     });
 
@@ -2073,7 +2071,7 @@ describe('Test Suite: Access Control', function () {
         expect(ac.getGrants().admin.$extend['editor']).toBeUndefined();
         expect(ac.getGrants().admin.$extend['agent']).toBeUndefined();
         throwsAccessControlError(() => ac.grant('roleX').extend('roleX'));
-        throwsAccessControlError(() =>ac.grant(['admin2', 'roleX']).extend(['roleX', 'admin3']));
+        throwsAccessControlError(() => ac.grant(['admin2', 'roleX']).extend(['roleX', 'admin3']));
     });
 
     it('should extend / remove roles synchronously', function () {
@@ -2185,7 +2183,7 @@ describe('Test Suite: Access Control', function () {
             attributes: ['*'], // grant only
             condition: categoryPoliticsCondition
         };
-        
+
         ac.grant(sportsEditorGrant);
         ac.grant(politicsEditorGrant);
 
@@ -2594,5 +2592,52 @@ describe('Test Suite: Access Control', function () {
         expect((ac.can('user').execute('create').sync().on('video')).attributes).toEqual(['*']);
 
         expect((ac.can('user').execute('create').sync().on('non-existent')).granted).toEqual(false);
+    });
+
+    // it('should grant access without context in grant witch NOT_EQUALS condition', async function () {
+    //     let ac = this.ac;
+    //     ac.setGrants(grantList);
+
+    //     const permission = ac.can('user').execute('create').sync().on('video');
+
+    //     console.log('DEBUG0:', { permission, granted: permission.granted, condition: permission.condition });
+
+    //     expect(permission.granted).toEqual(true);
+    // });
+
+    it('should get condition in permission', async function () {
+        let ac = this.ac;
+
+        ac.setGrants([
+            ...grantList, {
+                role: 'guest', resource: 'video', action: 'create', attributes: ['*'], condition: {
+                    Fn: 'NOT_EQUALS',
+                    args: { id: ['MAINTENANCE_BY_SYSTEM', 'MAINTENANCE'] },
+                },
+            }
+        ]);
+
+        const permission = ac.can('guest').execute('create').sync().on('video', true);
+
+        expect(permission.condition).toBeDefined();
+        expect(permission.condition.Fn).toEqual('NOT_EQUALS');
+        expect(permission.condition.args.id).toContain('MAINTENANCE_BY_SYSTEM');
+    });
+
+    it('should\'t get condition in permission because multiple roles and multiple grants', async function () {
+        let ac = this.ac;
+
+        ac.setGrants([
+            ...grantList, {
+                role: 'guest', resource: 'video', action: 'create', attributes: ['*'], condition: {
+                    Fn: 'NOT_EQUALS',
+                    args: { id: ['MAINTENANCE_BY_SYSTEM', 'MAINTENANCE'] },
+                },
+            }
+        ]);
+
+        const permission = ac.can(['guest', 'admin']).execute('create').sync().on('video', true);
+
+        expect(permission.condition).toBeUndefined();
     });
 });

@@ -1,5 +1,5 @@
 import { CommonUtil } from './../utils/';
-import { IQueryInfo, Permission } from '../core';
+import { IQueryInfo, Permission, IUnionAttributesAndConditions } from '../core';
 
 /**
  *  Represents the inner `Query` class that helps build an access information
@@ -163,11 +163,15 @@ class Query {
         if (skipConditions !== undefined) {
             this._.skipConditions = skipConditions;
         }
+
         if (checkInSync) {
-            return new Permission(this._, CommonUtil.getUnionAttrsOfRolesSync(this._grants, this._))
+            const union = CommonUtil.getUnionAttrsAndConditionOfRolesSync(this._grants, this._);
+
+            return new Permission(this._, union.attributes, union.condition);
         }
-        return CommonUtil.getUnionAttrsOfRoles(this._grants, this._)
-            .then((attributes) => new Permission(this._, attributes));
+
+        return CommonUtil.getUnionAttrsAndConditionOfRoles(this._grants, this._)
+            .then((union) => new Permission(this._, union.attributes, union.condition))
     }
 }
 

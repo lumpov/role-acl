@@ -6,3 +6,4 @@ export * from './IDictionary';
 export * from './IQueryInfo';
 export * from './Query';
 export * from './Permission';
+export * from './IUnionAttributesAndConditions';
