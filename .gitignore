@@ -64,3 +64,4 @@ typings/
 lib/
 bundle.js
 role-acl.js
+.DS_Store
