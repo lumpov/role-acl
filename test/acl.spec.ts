@@ -2640,4 +2640,21 @@ describe('Test Suite: Access Control', function () {
 
         expect(permission.condition).toBeUndefined();
     });
+
+    it('permission filter works with arrays of attributes not object', async function () {
+        let ac = this.ac;
+
+        ac.setGrants([
+            { role: 'admin', resource: 'video', action: 'create', attributes: ['id', 'label', 'test'] },            
+        ]);
+
+        const permission = ac.can('admin').execute('create').sync().on('video');
+
+        const filtered = permission.filter(['test', 'not_defined', 'id']);
+
+        console.log('permission filter works with arrays of attributes not object', { filtered });
+        
+
+        //expect(permission.condition).toBeUndefined();
+    });
 });

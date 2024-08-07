@@ -639,8 +639,14 @@ export class CommonUtil {
         if (!Array.isArray(arrOrObj)) {
             return this.filter(arrOrObj, attributes);
         }
-        return arrOrObj.map(o => {
-            return this.filter(o, attributes);
-        });
+
+        const objConvertedFromArr = arrOrObj.reduce((obj, item) => {
+            obj[item] = item;
+            return obj;
+        }, {});
+
+        const filterResult = this.filter(objConvertedFromArr, attributes);
+
+        return Object.keys(filterResult);
     }
 }
