@@ -57,7 +57,7 @@ describe('Test Suite: Access Control', function () {
 
     let grantListWithExtendRoles = grantList.concat([
         { role: 'editor', resource: 'post', action: 'create', attributes: ['*'] },
-        { role: 'editor', extend: ['user']},
+        { role: 'editor', extend: ['user'] },
         { role: 'editor', resource: 'post', action: 'delete', attributes: ['*'] }
     ]);
 
@@ -2645,16 +2645,13 @@ describe('Test Suite: Access Control', function () {
         let ac = this.ac;
 
         ac.setGrants([
-            { role: 'admin', resource: 'video', action: 'create', attributes: ['id', 'label', 'test'] },            
+            { role: 'admin', resource: 'video', action: 'create', attributes: ['id', 'label', 'test'] },
         ]);
 
         const permission = ac.can('admin').execute('create').sync().on('video');
 
         const filtered = permission.filter(['test', 'not_defined', 'id']);
 
-        console.log('permission filter works with arrays of attributes not object', { filtered });
-        
-
-        //expect(permission.condition).toBeUndefined();
+        expect(filtered).toEqual(['id', 'test']);
     });
 });
