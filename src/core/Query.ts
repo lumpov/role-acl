@@ -37,7 +37,7 @@ class Query {
      *         Either a single or array of roles or an
      *         {@link ?api=ac#AccessControl~IQueryInfo|`IQueryInfo` arbitrary object}.
      */
-    constructor(grants: any, role?: string | string[] | IQueryInfo) {
+    constructor(grants: any, role?: string | string[] | IQueryInfo, noError: boolean = false) {
         this._grants = grants;
         // if this is a (permission) object, we directly build attributes from
         // grants.
@@ -48,6 +48,7 @@ class Query {
             // the grant object for this.
             this._.role = <string | string[]>role;
         }
+        this._.noError = noError;
     }
 
     // -------------------------------
@@ -95,11 +96,25 @@ class Query {
      *           the resource attributes that the permission is granted for.
      */
     on(resource: string, skipConditions?: boolean) {
-        return this._getPermission(this._.action, resource, skipConditions || this._.skipConditions, this._.checkInSync);
+        return this._getPermission(this._.action, resource, skipConditions || this._.skipConditions, this._.checkInSync, this._.noError);
     }
 
     sync(): Query {
         this._.checkInSync = true;
+        return this;
+    }
+
+    /**
+    *  Useful to avoid tuntime errors inside getting permission
+    * 
+    *  @throws {Error}  no throw errors inside, return not granted Permission 
+    *                   instance
+    *
+    *  @returns {Query}
+    *           chain-function
+    */
+    noError(): Query {
+        this._.noError = true;
         return this;
     }
 
@@ -153,11 +168,14 @@ class Query {
      *  @private
      *  @param {String} action
      *  @param {String} [resource]
+     *  @param {boolean} [skipConditions]
+     *  @param {boolean} [checkInSync]
+     *  @param {boolean} [noError]
      *  @returns {Permission | Promise<Permission>}
      */
     private _getPermission(action: string, resource?: string,
         skipConditions?: boolean,
-        checkInSync?: boolean): Permission | Promise<Permission> {
+        checkInSync?: boolean, noError?: boolean): Permission | Promise<Permission> {
         this._.action = action;
         if (resource) this._.resource = resource;
         if (skipConditions !== undefined) {
@@ -165,13 +183,23 @@ class Query {
         }
 
         if (checkInSync) {
-            const union = CommonUtil.getUnionAttrsAndConditionOfRolesSync(this._grants, this._);
+            try {
+                const union = CommonUtil.getUnionAttrsAndConditionOfRolesSync(this._grants, this._);
+                return new Permission(this._, union.attributes, union.condition);
+            } catch (error) {
+                if (noError) return new Permission(this._, []);
 
-            return new Permission(this._, union.attributes, union.condition);
+                throw error;
+            }
         }
 
         return CommonUtil.getUnionAttrsAndConditionOfRoles(this._grants, this._)
             .then((union) => new Permission(this._, union.attributes, union.condition))
+            .catch((error) => {
+                if (noError) return new Permission(this._, []);
+
+                throw error;
+            });
     }
 }
 

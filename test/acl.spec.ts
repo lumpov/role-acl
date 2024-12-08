@@ -2654,4 +2654,39 @@ describe('Test Suite: Access Control', function () {
 
         expect(filtered).toEqual(['id', 'test']);
     });
+
+    it('Role not found is not runtime error. init AccessControl with noError', async function () {
+        let ac = new AccessControl({}, {}, true);
+
+        ac.setGrants([
+            { role: 'admin', resource: 'video', action: 'create', attributes: ['id', 'label', 'test'] },
+        ]);
+
+        const permissionAwait = await ac.can('newadmin').execute('create').on('video');
+
+        const permissionSync = await ac.can('newadmin').execute('create').sync().on('video');
+
+        expect(permissionAwait.granted).toEqual(false);
+        expect(permissionSync.granted).toEqual(false);
+    });
+
+    it('Role not found is not runtime error. use noError() in chain', async function () {
+        let ac = this.ac;
+        this.ac = new AccessControl();
+
+        ac.setGrants([
+            { role: 'admin', resource: 'video', action: 'create', attributes: ['id', 'label', 'test'] },
+        ]);
+
+        const permissionAwait = await ac.can('newadmin').execute('create').noError().on('video');
+
+        const permissionSync = ac.can('newadmin').execute('create').sync().noError().on('video');
+
+        expect(permissionAwait.granted).toEqual(false);
+        expect(permissionSync.granted).toEqual(false);
+
+        throwsError(() => ac.can('newadmin').execute('create').sync().on('video'));
+
+        await promiseThrowsError(ac.can('newadmin').execute('create').on('video'));
+    });
 });

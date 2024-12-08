@@ -30,10 +30,16 @@ interface IQueryInfo {
     skipConditions?: boolean
 
      /**
-     *  Indicates if conditions to be evaluated in sync;
+     *  Indicates if functions of getting permission to be evaluated in sync;
      */
     checkInSync?: boolean;
-    /**
+
+     /**
+     * Indicates that runtime errors will not interrupt execution, but will return instance Permission class with granted: false
+     */
+     noError?: boolean;
+
+     /**
      * Context for evaluating the condition
      * @type {Object}
      */

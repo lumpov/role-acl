@@ -80,6 +80,7 @@ class AccessControl {
    *  @private
    */
   private _grants: any;
+  private _noError: boolean;
 
   /**
    *  Initializes a new instance of `AccessControl` with the given grants.
@@ -89,10 +90,12 @@ class AccessControl {
    * 
    *  @param {Object} customConditionFns - custom condition functions
    */
-  constructor(grants: any = {}, customConditionFns: IDictionary<IFunctionCondition> = {} ) {
+  constructor(grants: any = {}, customConditionFns: IDictionary<IFunctionCondition> = {}, noError: boolean = false) {
     ConditionUtil.resetCustomConditionFunctions();
     ConditionUtil.setCustomConditionFunctions(customConditionFns);
     this.setGrants(grants);
+
+    this._noError = noError;
   }
 
   // -------------------------------
@@ -125,14 +128,14 @@ class AccessControl {
       this._grants = CommonUtil.normalizeGrantsObject(grantsObject);
     } else if (type === "array") {
       grantsObject.filter((grant => !grant.extend || !grant.extend.length))
-      .forEach((item: any) =>
-        CommonUtil.commitToGrants(this._grants, item)
-      );
+        .forEach((item: any) =>
+          CommonUtil.commitToGrants(this._grants, item)
+        );
 
       grantsObject.filter((item => item.extend && item.extend.length))
-      .forEach((item: any) =>
-        CommonUtil.extendRole(this._grants, item.role, item.extend)
-      );
+        .forEach((item: any) =>
+          CommonUtil.extendRole(this._grants, item.role, item.extend)
+        );
     }
     return this;
   }
@@ -327,7 +330,7 @@ class AccessControl {
    *  // Note: when multiple roles checked, acquired attributes are union (merged).
    */
   can(role: string | string[] | IQueryInfo): Query {
-    return new Query(this._grants, role);
+    return new Query(this._grants, role, this._noError);
   }
 
   /**
