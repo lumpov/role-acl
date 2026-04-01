@@ -69,7 +69,7 @@
     "webpack": "^5.105.4"
   },
   "dependencies": {
-    "jsonpath-plus": "^9.0.0",
+    "jsonpath-plus": "^10.4.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.flattendeep": "^4.4.0",
     "matcher": "^3.0.0",
