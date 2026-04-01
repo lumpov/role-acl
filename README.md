@@ -1,14 +1,14 @@
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=73QY55FZWSPRJ) [![Build Status](https://travis-ci.org/tensult/role-acl.png?branch=master)](https://travis-ci.org/tensult/role-acl) [![Test Coverage](https://api.codeclimate.com/v1/badges/2d748a99b2c54e057cc2/test_coverage)](https://codeclimate.com/github/tensult/role-acl/test_coverage) [![NPM Version](https://badge.fury.io/js/role-acl.svg?style=flat)](https://npmjs.org/package/role-acl) [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/tensult/role-acl/issues)
+[Donate](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=73QY55FZWSPRJ) [Build Status](https://travis-ci.org/tensult/role-acl) [Test Coverage](https://codeclimate.com/github/tensult/role-acl/test_coverage) [NPM Version](https://npmjs.org/package/role-acl) [contributions welcome](https://github.com/tensult/role-acl/issues)
 
 Role, Attribute and conditions based Access Control for Node.js  
 
 `npm i role-acl --save`  
 
-Many [RBAC][rbac] (Role-Based Access Control) implementations differ, but the basics is widely adopted since it simulates real life role (job) assignments. But while data is getting more and more complex; you need to define policies on resources, subjects or even environments. This is called [ABAC][abac] (Attribute-Based Access Control).
+Many [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) (Role-Based Access Control) implementations differ, but the basics is widely adopted since it simulates real life role (job) assignments. But while data is getting more and more complex; you need to define policies on resources, subjects or even environments. This is called [ABAC](https://en.wikipedia.org/wiki/Attribute-Based_Access_Control) (Attribute-Based Access Control).
 
-With the idea of merging the best features of the two (see this [NIST paper][nist-paper]); this library implements RBAC basics and also focuses on *resource*, *action* attributes and conditions.
+With the idea of merging the best features of the two (see this [NIST paper](http://csrc.nist.gov/groups/SNS/rbac/documents/kuhn-coyne-weil-10.pdf)); this library implements RBAC basics and also focuses on *resource*, *action* attributes and conditions.
 
-This library is an extension of [AccessControl][onury-accesscontrol]. But I removed support for possession and deny statements from orginal implementation.
+This library is an extension of [AccessControl](https://github.com/onury/accesscontrol). But I removed support for possession and deny statements from orginal implementation.
 
 ### Core Features
 
@@ -39,8 +39,11 @@ const AccessControl = require('role-acl');
 ```
 
 ## Examples
+
 ### Basic Examples
+
 Define roles and grants one by one.
+
 ```js
 const ac = new AccessControl();
 ac.grant('user')                    // define new or modify existing role. also takes an array.
@@ -129,6 +132,7 @@ console.log(permission.granted);    // —> true
 You can declare your own conditions (**requires version >= 4.5.2**). Those declarations should be registerd with the library BEFORE your grants and permission checks. The custom condition declarations are allowing you to extend the library core conditions with your own business logic without sacrificing the abillity to serialize your grants.
 
 **Basic example:**
+
 ```js
 // 1. Define the condition handler
 const greaterOrEqual = (context, args) => {
@@ -195,6 +199,7 @@ ac.can('user').context({ loginUserId: 1, articleOwnerId: 1 })
 ```
 
 **Custom condition can be async:**
+
 ```js
 import { asyncCheckResourceForUser } from './somewhere'; 
 
@@ -336,6 +341,7 @@ await ac.can('editor/news').context({ user: { id: 1 }, article: { owner: 1 }, ca
 ```
 
 ### Wildcard (glob notation) Resource and Actions Examples
+
 ```js
 ac.grant({
     role: 'politics/editor',
@@ -445,12 +451,15 @@ This is possible by resource attributes. You can use Glob notation to define all
 
 For example, we have a `video` resource that has the following attributes: `id`, `title` and `runtime`.
 All attributes of *any* `video` resource can be read by an `admin` role:
+
 ```js
 ac.grant('admin').execute('read').on('video', ['*']);
 // equivalent to:
 // ac.grant('admin').execute('read').on('video');
 ```
+
 But the `id` attribute should not be read by a `user` role.  
+
 ```js
 ac.grant('user').execute('read').on('video', ['*', '!id']);
 // equivalent to:
@@ -458,6 +467,7 @@ ac.grant('user').execute('read').on('video', ['*', '!id']);
 ```
 
 You can also use nested objects (attributes).
+
 ```js
 ac.grant('user').execute('read').on('account', ['*', '!record.id']);
 ```
@@ -472,6 +482,7 @@ permission.granted;       // true
 permission.attributes;    // ['*', '!record.id']
 permission.filter(data);  // filtered data (without record.id)
 ```
+
 See [express.js example](#expressjs-example).
 
 ### Defining All Grants at Once
@@ -539,7 +550,9 @@ let grantsObject = {
 
 const ac = new AccessControl(grantsObject);
 ```
+
 ... or an `Array` (useful when fetched from a database):
+
 ```js
 // grant list fetched from Database (to be converted to a valid grants object, internally)
 let grantList = [
@@ -564,7 +577,9 @@ let grantList = [
 ];
 const ac = new AccessControl(grantList);
 ```
+
 You can set/get grants any time:
+
 ```js
 const ac = new AccessControl();
 ac.setGrants(grantsObject);
@@ -584,6 +599,7 @@ ac.setGrants(user.permissions);
 ```
 
 ### Extending Roles
+
 ```js
 const ac = new AccessControl();
 const editorGrant = {
@@ -633,6 +649,7 @@ console.log(permission.attributes); // —> []
 ```
 
 ### Allowed Resources and actions
+
 ```js
 const ac = new AccessControl();
 ac.grant('user').condition({Fn: 'EQUALS', args: {category: 'sports'}}).execute('create').on('article');
@@ -668,33 +685,27 @@ console.log(ac.allowedActionsSync({role: 'owner', resource: 'video'}).sort()); /
 console.log(await ac.allowedActions({role: 'owner', resource: 'video'}).sort()); // -> ['*']
 
 ```
+
 **NOTE:**  allowedResources and allowedActions skip the conditions when context is not passed
 
 ### Example for versions >= 4.0.0
-[Take a look at the test cases][tests]
+
+[Take a look at the test cases](https://github.com/tensult/role-acl/blob/master/test/acl.spec.ts)
 
 ## Upgrading to >= 4.0.0
-* There are many breaking changes so please update the code accordingly.
-* All future updates and bug fixes will happen only to versions >= 4.
-* New features only available in >= 4
-  * Storing and retrieving of custom condition functions.
-  * Promise based conditional functions.
-  * For Sync use cases use function with Sync suffix.
+
+- There are many breaking changes so please update the code accordingly.
+- All future updates and bug fixes will happen only to versions >= 4.
+- New features only available in >= 4
+  - Storing and retrieving of custom condition functions.
+  - Promise based conditional functions.
+  - For Sync use cases use function with Sync suffix.
 
 ## Licenses
 
-* [role-acl][this]: [MIT][license].
-* [AccessControl][onury-accesscontrol]: [MIT][onury-accesscontrol-license].
-
-[rbac]:https://en.wikipedia.org/wiki/Role-based_access_control
-[abac]:https://en.wikipedia.org/wiki/Attribute-Based_Access_Control
-[crud]:https://en.wikipedia.org/wiki/Create,_read,_update_and_delete
-[nist-paper]:http://csrc.nist.gov/groups/SNS/rbac/documents/kuhn-coyne-weil-10.pdf
-[this]:https://github.com/tensult/role-acl
-[onury-accesscontrol]: https://github.com/onury/accesscontrol
-[license]:https://github.com/tensult/role-acl/blob/master/LICENSE
-[onury-accesscontrol-license]:https://github.com/onury/accesscontrol/blob/master/LICENSE
-[tests]:https://github.com/tensult/role-acl/blob/master/test/acl.spec.ts
+- [role-acl](https://github.com/tensult/role-acl): [MIT](https://github.com/tensult/role-acl/blob/master/LICENSE).
+- [AccessControl](https://github.com/onury/accesscontrol): [MIT](https://github.com/onury/accesscontrol/blob/master/LICENSE).
 
 ## Contact us
-This product is supported and actively developed by [Tensult](https://wwww/tensult.com). You can contact us at info@tensult.com.
+
+This product is supported and actively developed by [Tensult](https://wwww/tensult.com). You can contact us at [info@tensult.com](mailto:info@tensult.com).

@@ -1,6 +1,7 @@
 
-const AccessControl = require('../src').AccessControl;
-const getValueByPath = require('../src').getValueByPath;
+const AccessControl = require('../lib/src/AccessControl').AccessControl;
+const getValueByPath = require('../lib/src/conditions/util').getValueByPath;
+const mergeConditions = require('../lib/src/conditions/mergeConditions').mergeConditions;
 
 function type(o) {
     return Object.prototype.toString.call(o).match(/\s(\w+)/i)[1].toLowerCase();
@@ -396,6 +397,11 @@ describe('Test Suite: Access Control', function () {
     it('should filter object properties', async function () {
         expect(AccessControl.filter({ status: 'approved', id: 123 }, ['*', '!status'])).toEqual({ id: 123 });
         expect(AccessControl.filter({ status: 'approved', id: 123 }, ['*'])).toEqual({ status: 'approved', id: 123 });
+    })
+
+    it('should keep empty arrays when filtering object properties', function () {
+        const data = { status: 'approved', id: 123, tags: [] };
+        expect(AccessControl.filter(data, ['*'])).toEqual(data);
     })
 
     it('should grant access with custom actions and check permissions', async function () {
@@ -2688,5 +2694,254 @@ describe('Test Suite: Access Control', function () {
         throwsError(() => ac.can('newadmin').execute('create').sync().on('video'));
 
         await promiseThrowsError(ac.can('newadmin').execute('create').on('video'));
+    });
+});
+
+describe('Test Suite: mergeConditions', function () {
+
+    it('null + null → null', function () {
+        expect(mergeConditions(null, null)).toBeNull();
+    });
+
+    it('null + condition → condition (clone)', function () {
+        const cond = { Fn: 'EQUALS', args: { a: 1 } };
+        const result = mergeConditions(null, cond);
+        expect(result).toEqual(cond);
+        expect(result).not.toBe(cond);
+    });
+
+    it('condition + null → condition (clone)', function () {
+        const cond = { Fn: 'EQUALS', args: { a: 1 } };
+        const result = mergeConditions(cond, null);
+        expect(result).toEqual(cond);
+        expect(result).not.toBe(cond);
+    });
+
+    it('AND + AND → AND with merged args', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(c1, c2);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual({ Fn: 'EQUALS', args: { a: 1 } });
+        expect(result.args[1]).toEqual({ Fn: 'EQUALS', args: { b: 2 } });
+    });
+
+    it('AND + AND with multiple args each → AND with all args', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }, { Fn: 'EQUALS', args: { b: 2 } }] };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { c: 3 } }, { Fn: 'EQUALS', args: { d: 4 } }] };
+        const result: any = mergeConditions(c1, c2);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(4);
+    });
+
+    it('OR + OR → OR with merged args', function () {
+        const c1 = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(c1, c2);
+        expect(result.Fn).toBe('OR');
+        expect(result.args.length).toBe(2);
+    });
+
+    it('leaf + AND → AND with leaf prepended', function () {
+        const leaf = { Fn: 'EQUALS', args: { a: 1 } };
+        const and  = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(leaf, and);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(leaf);
+        expect(result.args[1]).toEqual({ Fn: 'EQUALS', args: { b: 2 } });
+    });
+
+    it('AND + leaf → AND with leaf appended', function () {
+        const and  = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const leaf = { Fn: 'EQUALS', args: { b: 2 } };
+        const result: any = mergeConditions(and, leaf);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual({ Fn: 'EQUALS', args: { a: 1 } });
+        expect(result.args[1]).toEqual(leaf);
+    });
+
+    it('leaf + leaf → AND([leaf1, leaf2])', function () {
+        const c1 = { Fn: 'EQUALS', args: { a: 1 } };
+        const c2 = { Fn: 'NOT_EQUALS', args: { b: 2 } };
+        const result: any = mergeConditions(c1, c2);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(c1);
+        expect(result.args[1]).toEqual(c2);
+    });
+
+    it('OR + leaf → AND([OR, leaf])', function () {
+        const or   = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const leaf = { Fn: 'EQUALS', args: { b: 2 } };
+        const result: any = mergeConditions(or, leaf);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(or);
+        expect(result.args[1]).toEqual(leaf);
+    });
+
+    it('leaf + OR → AND([leaf, OR])', function () {
+        const leaf = { Fn: 'EQUALS', args: { a: 1 } };
+        const or   = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(leaf, or);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(leaf);
+        expect(result.args[1]).toEqual(or);
+    });
+
+    it('AND + OR → AND([AND, OR])', function () {
+        const and = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const or  = { Fn: 'OR',  args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(and, or);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(and);
+        expect(result.args[1]).toEqual(or);
+    });
+
+    it('OR + AND → AND([OR, AND])', function () {
+        const or  = { Fn: 'OR',  args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const and = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(or, and);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+        expect(result.args[0]).toEqual(or);
+        expect(result.args[1]).toEqual(and);
+    });
+
+    it('NOT + leaf → AND([NOT, leaf])', function () {
+        const not  = { Fn: 'NOT', args: { Fn: 'EQUALS', args: { a: 1 } } };
+        const leaf = { Fn: 'EQUALS', args: { b: 2 } };
+        const result: any = mergeConditions(not, leaf);
+        expect(result.Fn).toBe('AND');
+        expect(result.args[0]).toEqual(not);
+        expect(result.args[1]).toEqual(leaf);
+    });
+
+    it('inputs are not mutated', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const c1Copy = JSON.parse(JSON.stringify(c1));
+        const c2Copy = JSON.parse(JSON.stringify(c2));
+        mergeConditions(c1, c2);
+        expect(c1).toEqual(c1Copy);
+        expect(c2).toEqual(c2Copy);
+    });
+
+    it('AND with single non-array args + AND → AND with both items', function () {
+        const c1 = { Fn: 'AND', args: { Fn: 'EQUALS', args: { a: 1 } } };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const result: any = mergeConditions(c1, c2);
+        expect(result.Fn).toBe('AND');
+        expect(result.args.length).toBe(2);
+    });
+});
+
+describe('Test Suite: mergeConditions — evaluate correctness', function () {
+    const ConditionUtil = require('../lib/src/conditions/util').ConditionUtil;
+
+    function evalBoth(c1, c2, ctx) {
+        const r1 = ConditionUtil.evaluate(c1, ctx);
+        const r2 = ConditionUtil.evaluate(c2, ctx);
+        return r1 && r2;
+    }
+
+    it('AND+AND: merged result equals separate AND evaluation', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }, { Fn: 'EQUALS', args: { b: 2 } }] };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { c: 3 } }] };
+        const ctx = { a: 1, b: 2, c: 3 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctx)).toBe(evalBoth(c1, c2, ctx));
+    });
+
+    it('AND+AND: false when one arg fails', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const ctx = { a: 1, b: 99 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctx)).toBe(evalBoth(c1, c2, ctx));
+        expect(ConditionUtil.evaluate(merged, ctx)).toBe(false);
+    });
+
+    it('OR+OR: merged result equals separate OR evaluation', function () {
+        const c1 = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const ctxBoth = { a: 1, b: 2 };
+        const ctxOne  = { a: 1, b: 99 };
+        const ctxNone = { a: 0, b: 99 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctxBoth)).toBe(true);
+        expect(ConditionUtil.evaluate(merged, ctxOne)).toBe(true);
+        expect(ConditionUtil.evaluate(merged, ctxNone)).toBe(false);
+    });
+
+    it('leaf+leaf: merged result equals separate AND evaluation', function () {
+        const c1 = { Fn: 'EQUALS', args: { a: 1 } };
+        const c2 = { Fn: 'EQUALS', args: { b: 2 } };
+        const ctxOk  = { a: 1, b: 2 };
+        const ctxFail = { a: 1, b: 99 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctxOk)).toBe(evalBoth(c1, c2, ctxOk));
+        expect(ConditionUtil.evaluate(merged, ctxFail)).toBe(evalBoth(c1, c2, ctxFail));
+    });
+
+    it('AND+leaf: merged result equals separate AND evaluation', function () {
+        const c1 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }] };
+        const c2 = { Fn: 'EQUALS', args: { b: 2 } };
+        const ctxOk   = { a: 1, b: 2 };
+        const ctxFail = { a: 1, b: 99 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctxOk)).toBe(evalBoth(c1, c2, ctxOk));
+        expect(ConditionUtil.evaluate(merged, ctxFail)).toBe(evalBoth(c1, c2, ctxFail));
+    });
+
+    it('leaf+AND: merged result equals separate AND evaluation', function () {
+        const c1 = { Fn: 'EQUALS', args: { a: 1 } };
+        const c2 = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { b: 2 } }] };
+        const ctxOk   = { a: 1, b: 2 };
+        const ctxFail = { a: 99, b: 2 };
+        const merged: any = mergeConditions(c1, c2);
+        expect(ConditionUtil.evaluate(merged, ctxOk)).toBe(evalBoth(c1, c2, ctxOk));
+        expect(ConditionUtil.evaluate(merged, ctxFail)).toBe(evalBoth(c1, c2, ctxFail));
+    });
+
+    it('AND+OR: (A AND B) AND (C OR D) — semantics preserved', function () {
+        const and = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }, { Fn: 'EQUALS', args: { b: 2 } }] };
+        const or  = { Fn: 'OR',  args: [{ Fn: 'EQUALS', args: { c: 3 } }, { Fn: 'EQUALS', args: { d: 4 } }] };
+        const merged: any = mergeConditions(and, or);
+        // a=1, b=2, c=3 → AND true, OR true → true
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, c: 3 })).toBe(true);
+        // a=1, b=2, d=4 → AND true, OR true (d matches) → true
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, d: 4 })).toBe(true);
+        // a=1, b=99 → AND false → false regardless of OR
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 99, c: 3 })).toBe(false);
+        // a=1, b=2, c=0, d=0 → AND true, OR false → false
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, c: 0, d: 0 })).toBe(false);
+        // Verify flattening would break: AND([A,B,C,D]) with a=1,b=2,c=3,d=0 → false (wrong)
+        // but correct merged gives true because OR(c=3, d=0) is true
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, c: 3, d: 0 })).toBe(true);
+    });
+
+    it('OR+AND: (C OR D) AND (A AND B) — semantics preserved', function () {
+        const or  = { Fn: 'OR',  args: [{ Fn: 'EQUALS', args: { c: 3 } }, { Fn: 'EQUALS', args: { d: 4 } }] };
+        const and = { Fn: 'AND', args: [{ Fn: 'EQUALS', args: { a: 1 } }, { Fn: 'EQUALS', args: { b: 2 } }] };
+        const merged: any = mergeConditions(or, and);
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, c: 3 })).toBe(true);
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 2, c: 0, d: 0 })).toBe(false);
+        expect(ConditionUtil.evaluate(merged, { a: 1, b: 99, c: 3 })).toBe(false);
+    });
+
+    it('OR+leaf: (A OR B) AND C — semantics preserved', function () {
+        const or   = { Fn: 'OR', args: [{ Fn: 'EQUALS', args: { a: 1 } }, { Fn: 'EQUALS', args: { b: 2 } }] };
+        const leaf = { Fn: 'EQUALS', args: { c: 3 } };
+        const merged: any = mergeConditions(or, leaf);
+        expect(ConditionUtil.evaluate(merged, { a: 1, c: 3 })).toBe(true);
+        expect(ConditionUtil.evaluate(merged, { b: 2, c: 3 })).toBe(true);
+        expect(ConditionUtil.evaluate(merged, { a: 1, c: 0 })).toBe(false);
+        expect(ConditionUtil.evaluate(merged, { a: 0, b: 0, c: 3 })).toBe(false);
     });
 });
