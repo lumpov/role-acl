@@ -2,3 +2,4 @@ var AC = require("./lib/src").AccessControl;
 module.exports = AC;
 // adding circular ref to allow easy importing in both ES5/6 and TS projects
 module.exports.AccessControl = AC;
+module.exports.mergeConditions = require("./lib/src/conditions/mergeConditions").mergeConditions;
