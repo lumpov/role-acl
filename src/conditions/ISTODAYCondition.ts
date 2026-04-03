@@ -1,18 +1,17 @@
 import { IConditionFunction } from './IConditionFunction';
 import { AccessControlError } from '../core';
-import { toComparable } from './compareUtil';
+import { ConditionUtil } from './util';
+import { toLocalMoment } from './compareUtil';
+import moment from 'moment';
 
 /**
  * ISTODAY condition
  *
- * Проверяет, что значение указанных полей относится к сегодняшнему дню.
- * Требует наличия в контексте context.date.todayStart и context.date.tomorrowStart.
+ * Проверяет, что календарная дата указанных полей совпадает с сегодняшней датой сервера.
+ * Сравнение производится по локальной дате (YYYY-MM-DD), без учёта времени и timezone.
  *
- * args — массив имён полей контекста:
- *   { Fn: 'ISTODAY', args: ['data_vremya_servera'] }
- *
- * Возвращает true если для всех перечисленных полей выполняется:
- *   todayStart <= fieldValue < tomorrowStart
+ * args — массив путей к полям контекста (поддерживаются $.record.field и обычные имена):
+ *   { Fn: 'ISTODAY', args: ['$.record.data_vremya_servera'] }
  */
 export class ISTODAYCondition implements IConditionFunction {
     evaluate(args?: any, context?: any) {
@@ -28,25 +27,17 @@ export class ISTODAYCondition implements IConditionFunction {
             throw new AccessControlError('ISTODAYCondition expects type of args to be array');
         }
 
-        const todayStart    = context?.date?.todayStart;
-        const tomorrowStart = context?.date?.tomorrowStart;
+        const today = moment();
 
-        if (!todayStart || !tomorrowStart) {
-            throw new AccessControlError(
-                'ISTODAYCondition requires context.date.todayStart and context.date.tomorrowStart'
-            );
-        }
-
-        const todayTs    = toComparable(todayStart);
-        const tomorrowTs = toComparable(tomorrowStart);
-
-        return args.every((fieldName: string) => {
-            const fieldValue = context[fieldName];
-            const fieldTs    = toComparable(fieldValue);
-            if (fieldTs === null || todayTs === null || tomorrowTs === null) {
+        return args.every((fieldPath: string) => {
+            const fieldValue = fieldPath.startsWith('$.')
+                ? ConditionUtil.getValueByPath(context, fieldPath)
+                : context[fieldPath];
+            const fieldMoment = toLocalMoment(fieldValue);
+            if (fieldMoment === null) {
                 return false;
             }
-            return fieldTs >= todayTs && fieldTs < tomorrowTs;
+            return fieldMoment.isSame(today, 'day');
         });
     }
 }

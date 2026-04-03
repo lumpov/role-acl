@@ -10,6 +10,34 @@ const DATETIME_FORMATS_UTC = [
 ];
 
 /**
+ * Парсит значение в moment в локальном времени.
+ * Строки Sequelize-формата (YYYY-MM-DD HH:mm:ss, без суффикса) трактуются как UTC
+ * и конвертируются в локальное время.
+ * Строки ISO без суффикса трактуются как локальное время напрямую.
+ * Объекты Date конвертируются в локальное время.
+ * Возвращает null если значение не распознано.
+ */
+export function toLocalMoment(value: any): moment.Moment | null {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (value instanceof Date) {
+        return moment(value);
+    }
+    if (typeof value === 'string') {
+        const mUtc = moment.utc(value, DATETIME_FORMATS_UTC, true);
+        if (mUtc.isValid()) {
+            return mUtc.local();
+        }
+        const mIso = moment(value, moment.ISO_8601, true);
+        if (mIso.isValid()) {
+            return mIso;
+        }
+    }
+    return null;
+}
+
+/**
  * Преобразует значение в число для сравнения.
  * Строки в формате DATETIME из Sequelize (без timezone-суффикса) трактуются как UTC,
  * что соответствует настройке dialectOptions.timezone: '+00:00'.

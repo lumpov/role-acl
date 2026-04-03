@@ -3190,92 +3190,93 @@ describe('Test Suite: GT / LT / GTE / LTE conditions', function () {
 
 describe('Test Suite: ISTODAY condition', function () {
     const ConditionUtil = require('../lib/src/conditions/util').ConditionUtil;
+    const moment        = require('../node_modules/moment');
 
-    const todayStart    = new Date('2026-04-03T00:00:00.000Z');
-    const tomorrowStart = new Date('2026-04-04T00:00:00.000Z');
-    const date          = { todayStart, tomorrowStart };
+    const today     = moment().format('YYYY-MM-DD');
+    const yesterday = moment().subtract(1, 'days').format('YYYY-MM-DD');
+    const tomorrow  = moment().add(1, 'days').format('YYYY-MM-DD');
 
     it('строка Sequelize в пределах сегодня → true', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: '2026-04-03 12:00:00', date },
+            { ts: `${today} 12:00:00` },
         )).toBe(true);
     });
 
-    it('строка Sequelize ровно todayStart → true (граница включена)', function () {
+    it('строка Sequelize полночь сегодня → true', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: '2026-04-03 00:00:00', date },
+            { ts: `${today} 00:00:00` },
         )).toBe(true);
     });
 
-    it('строка Sequelize ровно tomorrowStart → false (граница исключена)', function () {
+    it('строка Sequelize полночь завтра → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: '2026-04-04 00:00:00', date },
+            { ts: `${tomorrow} 00:00:00` },
         )).toBe(false);
     });
 
     it('вчера → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: '2026-04-02 23:59:59', date },
+            { ts: `${yesterday} 00:00:00` },
         )).toBe(false);
     });
 
-    it('объект Date внутри сегодня → true', function () {
+    it('объект Date сегодня → true', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: new Date('2026-04-03T15:30:00.000Z'), date },
+            { ts: new Date() },
         )).toBe(true);
     });
 
     it('объект Date вчера → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: new Date('2026-04-02T23:59:59.000Z'), date },
+            { ts: moment().subtract(1, 'days').toDate() },
         )).toBe(false);
     });
 
     it('несколько полей — все сегодня → true', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['a', 'b'] },
-            { a: '2026-04-03 08:00:00', b: '2026-04-03 20:00:00', date },
+            { a: `${today}T08:00`, b: `${today}T20:00` },
         )).toBe(true);
     });
 
     it('несколько полей — одно не сегодня → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['a', 'b'] },
-            { a: '2026-04-03 08:00:00', b: '2026-04-02 20:00:00', date },
+            { a: `${today}T08:00`, b: `${yesterday}T20:00` },
         )).toBe(false);
     });
 
     it('поле null → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: null, date },
+            { ts: null },
         )).toBe(false);
     });
 
     it('поле undefined → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: undefined, date },
+            { ts: undefined },
         )).toBe(false);
     });
 
     it('поле непарсируемая строка → false', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: 'not-a-date', date },
+            { ts: 'not-a-date' },
         )).toBe(false);
     });
 
     it('args=null → true (нет ограничений)', function () {
         expect(ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: null },
-            { ts: '2026-04-03 12:00:00', date },
+            { ts: `${today} 12:00:00` },
         )).toBe(true);
     });
 
@@ -3289,19 +3290,89 @@ describe('Test Suite: ISTODAY condition', function () {
     it('args не массив → бросает AccessControlError', function () {
         expect(() => ConditionUtil.evaluate(
             { Fn: 'ISTODAY', args: { ts: true } },
-            { ts: '2026-04-03 12:00:00', date },
-        )).toThrow();
-    });
-
-    it('отсутствует context.date.todayStart → бросает AccessControlError', function () {
-        expect(() => ConditionUtil.evaluate(
-            { Fn: 'ISTODAY', args: ['ts'] },
-            { ts: '2026-04-03 12:00:00' },
+            { ts: `${today} 12:00:00` },
         )).toThrow();
     });
 
     it('validateCondition не бросает для ISTODAY', function () {
         expect(() => ConditionUtil.validateCondition({ Fn: 'ISTODAY', args: ['ts'] })).not.toThrow();
+    });
+
+    it('строка ISO без секунд сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['data_vremya_servera'] },
+            { data_vremya_servera: `${today}T23:15` },
+        )).toBe(true);
+    });
+
+    it('строка ISO без секунд вчера → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['data_vremya_servera'] },
+            { data_vremya_servera: `${yesterday}T23:15` },
+        )).toBe(false);
+    });
+
+    it('$.record.field путь — сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.data_vremya_servera'] },
+            { record: { data_vremya_servera: `${today}T23:15` } },
+        )).toBe(true);
+    });
+
+    it('$.record.field путь — вчера → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.data_vremya_servera'] },
+            { record: { data_vremya_servera: `${yesterday}T23:15` } },
+        )).toBe(false);
+    });
+
+    it('$.record.field путь — поле null → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.data_vremya_servera'] },
+            { record: { data_vremya_servera: null } },
+        )).toBe(false);
+    });
+
+    it('$.record.field путь — поле отсутствует → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.data_vremya_servera'] },
+            { record: {} },
+        )).toBe(false);
+    });
+
+    it('глубокий путь $.a.b.ts — сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.a.b.ts'] },
+            { a: { b: { ts: `${today} 10:00:00` } } },
+        )).toBe(true);
+    });
+
+    it('глубокий путь $.a.b.ts — вчера → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.a.b.ts'] },
+            { a: { b: { ts: `${yesterday} 10:00:00` } } },
+        )).toBe(false);
+    });
+
+    it('несколько $.record.* путей — все сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.ts1', '$.record.ts2'] },
+            { record: { ts1: `${today}T08:00`, ts2: `${today}T12:00` } },
+        )).toBe(true);
+    });
+
+    it('несколько $.record.* путей — одно не сегодня → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['$.record.ts1', '$.record.ts2'] },
+            { record: { ts1: `${today}T08:00`, ts2: `${yesterday}T20:00` } },
+        )).toBe(false);
+    });
+
+    it('смешанные пути: плоский и $.record.* — оба сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['flat_ts', '$.record.nested_ts'] },
+            { flat_ts: `${today}T08:00`, record: { nested_ts: `${today}T12:00` } },
+        )).toBe(true);
     });
 });
 
