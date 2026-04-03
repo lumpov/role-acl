@@ -10,6 +10,11 @@ import { ListContainsCondition as ListContainsConditionFunction } from "./ListCo
 import { OrCondition as OrConditionFunction } from "./OrCondition";
 import { AndCondition as AndConditionFunction } from "./AndCondition";
 import { StartsWithCondition } from "./StartsWithCondition";
+import { GTCondition as GTConditionFunction } from "./GTCondition";
+import { LTCondition as LTConditionFunction } from "./LTCondition";
+import { GTECondition as GTEConditionFunction } from "./GTECondition";
+import { LTECondition as LTEConditionFunction } from "./LTECondition";
+import { ISTODAYCondition as ISTODAYConditionFunction } from "./ISTODAYCondition";
 import { IConditionFunction } from "./IConditionFunction";
 import {
   AccessControlError,
@@ -27,6 +32,11 @@ export class ConditionUtil {
   public static readonly NOT = new NotConditionFunction();
   public static readonly OR = new OrConditionFunction();
   public static readonly STARTS_WITH = new StartsWithCondition();
+  public static readonly GT = new GTConditionFunction();
+  public static readonly LT = new LTConditionFunction();
+  public static readonly GTE = new GTEConditionFunction();
+  public static readonly LTE = new LTEConditionFunction();
+  public static readonly ISTODAY = new ISTODAYConditionFunction();
   private static _customConditionFunctions: IDictionary<
     IFunctionCondition
   > = {};

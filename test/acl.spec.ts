@@ -2945,3 +2945,414 @@ describe('Test Suite: mergeConditions — evaluate correctness', function () {
         expect(ConditionUtil.evaluate(merged, { a: 0, b: 0, c: 3 })).toBe(false);
     });
 });
+
+describe('Test Suite: GT / LT / GTE / LTE conditions', function () {
+    const ConditionUtil = require('../lib/src/conditions/util').ConditionUtil;
+
+    describe('GT — числа', function () {
+        it('5 > 3 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { score: 3 } }, { score: 5 })).toBe(true);
+        });
+        it('3 > 5 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { score: 5 } }, { score: 3 })).toBe(false);
+        });
+        it('5 > 5 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { score: 5 } }, { score: 5 })).toBe(false);
+        });
+    });
+
+    describe('LT — числа', function () {
+        it('3 < 5 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LT', args: { score: 5 } }, { score: 3 })).toBe(true);
+        });
+        it('5 < 3 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LT', args: { score: 3 } }, { score: 5 })).toBe(false);
+        });
+        it('5 < 5 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LT', args: { score: 5 } }, { score: 5 })).toBe(false);
+        });
+    });
+
+    describe('GTE — числа', function () {
+        it('5 >= 3 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: { score: 3 } }, { score: 5 })).toBe(true);
+        });
+        it('5 >= 5 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: { score: 5 } }, { score: 5 })).toBe(true);
+        });
+        it('3 >= 5 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: { score: 5 } }, { score: 3 })).toBe(false);
+        });
+    });
+
+    describe('LTE — числа', function () {
+        it('3 <= 5 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LTE', args: { score: 5 } }, { score: 3 })).toBe(true);
+        });
+        it('5 <= 5 → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LTE', args: { score: 5 } }, { score: 5 })).toBe(true);
+        });
+        it('5 <= 3 → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'LTE', args: { score: 3 } }, { score: 5 })).toBe(false);
+        });
+    });
+
+    describe('GT / LT / GTE / LTE — JSONPath args', function () {
+        it('GE: поле >= $.date.todayStart через JSONPath', function () {
+            const todayStart = new Date('2026-04-03T00:00:00.000Z');
+            const ctx = {
+                data_vremya_servera: '2026-04-03 12:00:00',
+                date: { todayStart },
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'GTE', args: { data_vremya_servera: '$.date.todayStart' } },
+                ctx,
+            )).toBe(true);
+        });
+
+        it('GE: поле < $.date.todayStart → false', function () {
+            const todayStart = new Date('2026-04-03T00:00:00.000Z');
+            const ctx = {
+                data_vremya_servera: '2026-04-02 23:59:59',
+                date: { todayStart },
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'GTE', args: { data_vremya_servera: '$.date.todayStart' } },
+                ctx,
+            )).toBe(false);
+        });
+
+        it('LT: поле < $.date.tomorrowStart → true', function () {
+            const tomorrowStart = new Date('2026-04-04T00:00:00.000Z');
+            const ctx = {
+                data_vremya_servera: '2026-04-03 23:59:59',
+                date: { tomorrowStart },
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'LT', args: { data_vremya_servera: '$.date.tomorrowStart' } },
+                ctx,
+            )).toBe(true);
+        });
+
+        it('GT: поле > $.date.yesterdayStart → true', function () {
+            const yesterdayStart = new Date('2026-04-02T00:00:00.000Z');
+            const ctx = {
+                data_vremya_servera: '2026-04-03 00:00:01',
+                date: { yesterdayStart },
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'GT', args: { data_vremya_servera: '$.date.yesterdayStart' } },
+                ctx,
+            )).toBe(true);
+        });
+
+        it('LTE: поле <= $.date.todayStart (равно) → true', function () {
+            const todayStart = new Date('2026-04-03T00:00:00.000Z');
+            const ctx = {
+                data_vremya_servera: '2026-04-03 00:00:00',
+                date: { todayStart },
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'LTE', args: { data_vremya_servera: '$.date.todayStart' } },
+                ctx,
+            )).toBe(true);
+        });
+    });
+
+    describe('GT / LT / GTE / LTE — даты: строки Sequelize DATETIME vs Date', function () {
+        it('строка "2026-04-03 12:00:00" >= Date(2026-04-03T00:00:00Z) → true', function () {
+            const ctx = {
+                ts: '2026-04-03 12:00:00',
+                boundary: new Date('2026-04-03T00:00:00.000Z'),
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'GTE', args: { ts: '$.boundary' } },
+                ctx,
+            )).toBe(true);
+        });
+
+        it('строка "2026-04-02 23:59:59" >= Date(2026-04-03T00:00:00Z) → false', function () {
+            const ctx = {
+                ts: '2026-04-02 23:59:59',
+                boundary: new Date('2026-04-03T00:00:00.000Z'),
+            };
+            expect(ConditionUtil.evaluate(
+                { Fn: 'GTE', args: { ts: '$.boundary' } },
+                ctx,
+            )).toBe(false);
+        });
+
+        it('строка "2026-04-03 00:00:00" == Date(2026-04-03T00:00:00Z): GTE → true, LTE → true, GT → false, LT → false', function () {
+            const ctx = {
+                ts: '2026-04-03 00:00:00',
+                boundary: new Date('2026-04-03T00:00:00.000Z'),
+            };
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: { ts: '$.boundary' } }, ctx)).toBe(true);
+            expect(ConditionUtil.evaluate({ Fn: 'LTE', args: { ts: '$.boundary' } }, ctx)).toBe(true);
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { ts: '$.boundary' } }, ctx)).toBe(false);
+            expect(ConditionUtil.evaluate({ Fn: 'LT', args: { ts: '$.boundary' } }, ctx)).toBe(false);
+        });
+
+        it('Date vs Date: сравнение двух объектов Date', function () {
+            const ctx = {
+                a: new Date('2026-04-03T12:00:00Z'),
+                b: new Date('2026-04-03T00:00:00Z'),
+            };
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { a: '$.b' } }, ctx)).toBe(true);
+            expect(ConditionUtil.evaluate({ Fn: 'LT', args: { a: '$.b' } }, ctx)).toBe(false);
+        });
+    });
+
+    describe('GT / LT / GTE / LTE — граничные случаи', function () {
+        it('args=null → true', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: null }, { score: 5 })).toBe(true);
+        });
+
+        it('context=null → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GTE', args: { score: 3 } }, null)).toBe(false);
+        });
+
+        it('null значение поля → false', function () {
+            expect(ConditionUtil.evaluate({ Fn: 'GT', args: { score: 0 } }, { score: null })).toBe(false);
+        });
+
+        it('args не объект → бросает AccessControlError', function () {
+            expect(() => ConditionUtil.evaluate({ Fn: 'GT', args: 'bad' }, { score: 5 })).toThrow();
+        });
+
+        it('validateCondition не бросает для GT/LT/GTE/LTE', function () {
+            expect(() => ConditionUtil.validateCondition({ Fn: 'GT', args: { x: 1 } })).not.toThrow();
+            expect(() => ConditionUtil.validateCondition({ Fn: 'LT', args: { x: 1 } })).not.toThrow();
+            expect(() => ConditionUtil.validateCondition({ Fn: 'GTE', args: { x: 1 } })).not.toThrow();
+            expect(() => ConditionUtil.validateCondition({ Fn: 'LTE', args: { x: 1 } })).not.toThrow();
+        });
+    });
+
+    describe('GT / LT / GTE / LTE — интеграция с AccessControl', function () {
+        it('GE condition в grant: доступ разрешён когда score >= 10', async function () {
+            const ac = new AccessControl();
+            ac.grant('user').condition({ Fn: 'GTE', args: { score: 10 } }).execute('read').on('report');
+
+            const permAllow = await ac.can('user').context({ score: 15 }).execute('read').on('report');
+            expect(permAllow.granted).toBe(true);
+
+            const permDeny = await ac.can('user').context({ score: 5 }).execute('read').on('report');
+            expect(permDeny.granted).toBe(false);
+        });
+
+        it('LT condition в grant: доступ разрешён когда age < 18', async function () {
+            const ac = new AccessControl();
+            ac.grant('minor').condition({ Fn: 'LT', args: { age: 18 } }).execute('read').on('content');
+
+            const permAllow = await ac.can('minor').context({ age: 12 }).execute('read').on('content');
+            expect(permAllow.granted).toBe(true);
+
+            const permDeny = await ac.can('minor').context({ age: 20 }).execute('read').on('content');
+            expect(permDeny.granted).toBe(false);
+        });
+
+        it('GE + LT в AND: диапазон дат (сегодня)', async function () {
+            const ac = new AccessControl();
+            const todayStart    = new Date('2026-04-03T00:00:00.000Z');
+            const tomorrowStart = new Date('2026-04-04T00:00:00.000Z');
+
+            ac.grant('user').condition({
+                Fn: 'AND',
+                args: [
+                    { Fn: 'GTE', args: { created_at: '$.date.todayStart' } },
+                    { Fn: 'LT', args: { created_at: '$.date.tomorrowStart' } },
+                ],
+            }).execute('read').on('order');
+
+            const ctxToday = {
+                created_at: '2026-04-03 12:00:00',
+                date: { todayStart, tomorrowStart },
+            };
+            const permToday = await ac.can('user').context(ctxToday).execute('read').on('order');
+            expect(permToday.granted).toBe(true);
+
+            const ctxYesterday = {
+                created_at: '2026-04-02 23:59:59',
+                date: { todayStart, tomorrowStart },
+            };
+            const permYesterday = await ac.can('user').context(ctxYesterday).execute('read').on('order');
+            expect(permYesterday.granted).toBe(false);
+
+            const ctxTomorrow = {
+                created_at: '2026-04-04 00:00:00',
+                date: { todayStart, tomorrowStart },
+            };
+            const permTomorrow = await ac.can('user').context(ctxTomorrow).execute('read').on('order');
+            expect(permTomorrow.granted).toBe(false);
+        });
+    });
+});
+
+describe('Test Suite: ISTODAY condition', function () {
+    const ConditionUtil = require('../lib/src/conditions/util').ConditionUtil;
+
+    const todayStart    = new Date('2026-04-03T00:00:00.000Z');
+    const tomorrowStart = new Date('2026-04-04T00:00:00.000Z');
+    const date          = { todayStart, tomorrowStart };
+
+    it('строка Sequelize в пределах сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: '2026-04-03 12:00:00', date },
+        )).toBe(true);
+    });
+
+    it('строка Sequelize ровно todayStart → true (граница включена)', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: '2026-04-03 00:00:00', date },
+        )).toBe(true);
+    });
+
+    it('строка Sequelize ровно tomorrowStart → false (граница исключена)', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: '2026-04-04 00:00:00', date },
+        )).toBe(false);
+    });
+
+    it('вчера → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: '2026-04-02 23:59:59', date },
+        )).toBe(false);
+    });
+
+    it('объект Date внутри сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: new Date('2026-04-03T15:30:00.000Z'), date },
+        )).toBe(true);
+    });
+
+    it('объект Date вчера → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: new Date('2026-04-02T23:59:59.000Z'), date },
+        )).toBe(false);
+    });
+
+    it('несколько полей — все сегодня → true', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['a', 'b'] },
+            { a: '2026-04-03 08:00:00', b: '2026-04-03 20:00:00', date },
+        )).toBe(true);
+    });
+
+    it('несколько полей — одно не сегодня → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['a', 'b'] },
+            { a: '2026-04-03 08:00:00', b: '2026-04-02 20:00:00', date },
+        )).toBe(false);
+    });
+
+    it('поле null → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: null, date },
+        )).toBe(false);
+    });
+
+    it('поле undefined → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: undefined, date },
+        )).toBe(false);
+    });
+
+    it('поле непарсируемая строка → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: 'not-a-date', date },
+        )).toBe(false);
+    });
+
+    it('args=null → true (нет ограничений)', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: null },
+            { ts: '2026-04-03 12:00:00', date },
+        )).toBe(true);
+    });
+
+    it('context=null → false', function () {
+        expect(ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            null,
+        )).toBe(false);
+    });
+
+    it('args не массив → бросает AccessControlError', function () {
+        expect(() => ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: { ts: true } },
+            { ts: '2026-04-03 12:00:00', date },
+        )).toThrow();
+    });
+
+    it('отсутствует context.date.todayStart → бросает AccessControlError', function () {
+        expect(() => ConditionUtil.evaluate(
+            { Fn: 'ISTODAY', args: ['ts'] },
+            { ts: '2026-04-03 12:00:00' },
+        )).toThrow();
+    });
+
+    it('validateCondition не бросает для ISTODAY', function () {
+        expect(() => ConditionUtil.validateCondition({ Fn: 'ISTODAY', args: ['ts'] })).not.toThrow();
+    });
+});
+
+describe('Test Suite: null и непарсируемые значения в GT / LT / GTE / LTE', function () {
+    const ConditionUtil = require('../lib/src/conditions/util').ConditionUtil;
+
+    const FNS = ['GT', 'LT', 'GTE', 'LTE'];
+
+    FNS.forEach((Fn) => {
+        describe(Fn, function () {
+            it('поле null → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { score: 5 } },
+                    { score: null },
+                )).toBe(false);
+            });
+
+            it('поле undefined → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { score: 5 } },
+                    { score: undefined },
+                )).toBe(false);
+            });
+
+            it('поле непарсируемая строка → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { ts: 5 } },
+                    { ts: 'not-a-date' },
+                )).toBe(false);
+            });
+
+            it('значение в args непарсируемая строка → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { score: 'not-a-date' } },
+                    { score: 10 },
+                )).toBe(false);
+            });
+
+            it('оба null → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { score: null } },
+                    { score: null },
+                )).toBe(false);
+            });
+
+            it('поле — валидная дата, args — непарсируемая строка → false', function () {
+                expect(ConditionUtil.evaluate(
+                    { Fn, args: { ts: 'garbage' } },
+                    { ts: '2026-04-03 12:00:00' },
+                )).toBe(false);
+            });
+        });
+    });
+});
